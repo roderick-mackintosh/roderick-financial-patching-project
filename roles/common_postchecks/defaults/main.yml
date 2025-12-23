@@ -1,0 +1,6 @@
+---
+service_checks: []
+check_logs_enabled: false
+expected_kernel_version: ""
+expected_os_version: ""
+health_check_status: "pending"

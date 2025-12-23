@@ -1,0 +1,2 @@
+report_output_dir: artifacts/results
+report_filename: "{{ inventory_hostname }}.json"

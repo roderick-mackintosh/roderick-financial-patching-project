@@ -1,0 +1,6 @@
+environment: prod
+target_groups: webservers
+window:
+  day_of_week: "SUN"
+  start_time_utc: "10:00"
+  duration_minutes: 120

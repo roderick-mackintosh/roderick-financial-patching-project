@@ -1,0 +1,6 @@
+environment: prod
+target_groups: appservers
+window:
+  day_of_week: "SUN"
+  start_time_utc: "12:00"
+  duration_minutes: 120

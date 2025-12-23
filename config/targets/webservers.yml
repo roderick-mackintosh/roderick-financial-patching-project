@@ -1,0 +1,7 @@
+target_group: webservers
+inventory_groups:
+  - webservers
+filters:
+  os_version:
+    include:
+      - ubuntu22.04

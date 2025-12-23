@@ -1,0 +1,65 @@
+---
+- name: Check root filesystem free space (Linux)
+  ansible.builtin.shell: "df --output=pcent / | tail -1 | tr -dc '0-9'"
+  register: root_fs_use
+  changed_when: false
+  when: ansible_os_family != "Windows"
+
+- name: Fail if root filesystem utilization too high (Linux)
+  ansible.builtin.assert:
+    that:
+      - (100 - (root_fs_use.stdout | int)) >= min_root_free_percent
+    fail_msg: "Insufficient free space on /. Require at least {{ min_root_free_percent }}% free."
+  when: ansible_os_family != "Windows"
+
+- name: Check root filesystem free space (Windows)
+  ansible.windows.win_shell: "(Get-PSDrive -Name C).Used / (Get-PSDrive -Name C).Capacity * 100"
+  register: root_fs_use_win
+  changed_when: false
+  when: ansible_os_family == "Windows"
+
+- name: Fail if C: utilization too high (Windows)
+  ansible.builtin.assert:
+    that:
+      - (100 - (root_fs_use_win.stdout | float)) >= min_root_free_percent
+    fail_msg: "Insufficient free space on C:. Require at least {{ min_root_free_percent }}% free."
+  when: ansible_os_family == "Windows"
+
+- name: Verify repository connectivity (Linux)
+  ansible.builtin.command: apt-get update -qq
+  changed_when: false
+  register: repo_check
+  when: ansible_os_family != "Windows"
+
+- name: Verify repository connectivity (Windows)
+  ansible.windows.win_shell: |
+    $sources = {{ windows_repo_sources | to_json }}
+    $results = @()
+    foreach ($s in $sources) {
+      $ok = (Test-NetConnection -ComputerName $s -Port 443 -WarningAction SilentlyContinue).TcpTestSucceeded
+      $results += [PSCustomObject]@{source=$s; reachable=$ok}
+    }
+    $results | ConvertTo-Json
+  register: repo_check_win
+  changed_when: false
+  when: ansible_os_family == "Windows"
+
+- name: Fail if any repository checks failed (Windows)
+  ansible.builtin.assert:
+    that:
+      - (repo_check_win.stdout | from_json) | map(attribute='reachable') | min
+    fail_msg: "Repository connectivity failed for one or more sources."
+  when: ansible_os_family == "Windows"
+
+- name: Check backup status file (optional)
+  ansible.builtin.stat:
+    path: "{{ backup_status_file }}"
+  register: backup_status
+  when: backup_status_file | length > 0
+
+- name: Fail if backup status file missing (optional)
+  ansible.builtin.assert:
+    that:
+      - backup_status.stat.exists
+    fail_msg: "Backup status file {{ backup_status_file }} not found."
+  when: backup_status_file | length > 0

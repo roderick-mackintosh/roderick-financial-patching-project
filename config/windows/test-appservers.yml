@@ -1,0 +1,6 @@
+environment: test
+target_groups: appservers
+window:
+  day_of_week: "THU"
+  start_time_utc: "03:00"
+  duration_minutes: 90

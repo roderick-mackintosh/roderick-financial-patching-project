@@ -1,0 +1,13 @@
+- name: Patch Systems
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    patch_exclude_packages: "{{ patch_policy_exclude | default([]) }}"
+
+  roles:
+    - role: linux_patching
+      when: ansible_os_family != "Windows"
+    - role: windows_patching
+      when: ansible_os_family == "Windows"

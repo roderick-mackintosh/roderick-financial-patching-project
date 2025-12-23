@@ -1,0 +1,6 @@
+environment: dev
+target_groups: appservers
+window:
+  day_of_week: "WED"
+  start_time_utc: "02:00"
+  duration_minutes: 60

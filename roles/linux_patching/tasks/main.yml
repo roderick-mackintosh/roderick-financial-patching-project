@@ -1,0 +1,56 @@
+- name: Gather upgradable package list
+  ansible.builtin.command: apt list --upgradable
+  register: apt_upgradable_raw
+  changed_when: false
+  failed_when: false
+
+- name: Gather installed packages before patch
+  ansible.builtin.command: dpkg-query -W -f='${Package}=${Version}\n'
+  register: packages_before_raw
+  changed_when: false
+
+- name: Hold excluded packages before upgrade
+  ansible.builtin.command: apt-mark hold {{ item }}
+  loop: "{{ patch_exclude_packages }}"
+  when: patch_exclude_packages | length > 0
+  changed_when: "'already' not in hold_result.stdout | default('')"
+  register: hold_result
+
+- name: Update cache and upgrade installed packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: dist
+    only_upgrade: yes
+    autoremove: yes
+  register: apt_result
+
+- name: Unhold excluded packages after upgrade
+  ansible.builtin.command: apt-mark unhold {{ item }}
+  loop: "{{ patch_exclude_packages }}"
+  when: patch_exclude_packages | length > 0
+  changed_when: "'already' not in unhold_result.stdout | default('')"
+  register: unhold_result
+
+- name: Gather installed packages after patch
+  ansible.builtin.command: dpkg-query -W -f='${Package}=${Version}\n'
+  register: packages_after_raw
+  changed_when: false
+
+- name: Reboot if required
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ reboot_timeout }}"
+  when: apt_result.reboot_required | default(false)
+
+- name: Wait for host connectivity after reboot
+  ansible.builtin.wait_for_connection:
+    timeout: 300
+
+- name: Confirm connectivity
+  ansible.builtin.ping:
+
+- name: Record patch results
+  ansible.builtin.set_fact:
+    packages_before: "{{ packages_before_raw.stdout_lines | default([]) }}"
+    packages_after: "{{ packages_after_raw.stdout_lines | default([]) }}"
+    updates_applied: "{{ apt_upgradable_raw.stdout_lines | default([]) | reject('search', '^Listing') | list }}"
+    reboot_performed: "{{ apt_result.reboot_required | default(false) }}"

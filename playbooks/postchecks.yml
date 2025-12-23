@@ -1,0 +1,13 @@
+- name: Postchecks
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    service_checks: "{{ services_to_verify | default([]) }}"
+    check_logs_enabled: "{{ check_logs | default(false) }}"
+    patch_exclude_packages: "{{ patch_policy_exclude | default([]) }}"
+
+  roles:
+    - role: common_postchecks
+    - role: reporting

@@ -1,0 +1,15 @@
+id: baseline-linux
+name: "Baseline Linux Weekly Patching"
+os_type: linux
+selection:
+  security_only: false          # false = all updates
+  severity_filters:
+    - critical
+    - important
+    - moderate
+    - low
+  exclude_packages: []
+patch_behavior:
+  reboot_strategy: auto_if_required
+  concurrency:
+    max_parallel_hosts: 10

@@ -1,0 +1,98 @@
+name: Patch Execute (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: string
+        required: true
+      policy:
+        description: "Patch policy (baseline, critical-only, etc.)"
+        type: string
+        required: true
+      target_group:
+        description: "Target group (webservers, dbservers, etc.)"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  patch:
+    name: Run Ansible patching
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible + deps
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install ansible
+          # Optional: if you use collections/roles pinned in requirements files:
+          if [[ -f requirements.yml ]]; then
+            ansible-galaxy collection install -r requirements.yml
+          fi
+          if [[ -f requirements.txt ]]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Run Ansible playbook
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          POLICY: ${{ inputs.policy }}
+          TARGET_GROUP: ${{ inputs.target_group }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifacts
+
+          echo "Running patching:"
+          echo "  environment:  $ENVIRONMENT"
+          echo "  policy:       $POLICY"
+          echo "  target_group: $TARGET_GROUP"
+
+          # Example inventory + playbook layout (adjust to your repo):
+          # inventories/DEV/hosts.ini
+          # inventories/TEST/hosts.ini
+          # inventories/PROD/hosts.ini
+          INVENTORY="inventories/${ENVIRONMENT}/hosts.ini"
+          PLAYBOOK="playbooks/patch.yml"
+
+          if [[ ! -f "$INVENTORY" ]]; then
+            echo "Inventory not found: $INVENTORY"
+            exit 1
+          fi
+          if [[ ! -f "$PLAYBOOK" ]]; then
+            echo "Playbook not found: $PLAYBOOK"
+            exit 1
+          fi
+
+          # Write a simple run log
+          RUN_ID="${{ github.run_id }}"
+          LOG="artifacts/patch-run-${RUN_ID}.log"
+
+          # Typical pattern: use --limit for group and --extra-vars for policy/env
+          ansible-playbook -i "$INVENTORY" "$PLAYBOOK" \
+            --limit "$TARGET_GROUP" \
+            --extra-vars "patch_policy=$POLICY environment=$ENVIRONMENT" \
+            | tee "$LOG"
+
+      - name: Upload patch results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-results-${{ inputs.environment }}-${{ inputs.target_group }}-${{ inputs.policy }}
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30

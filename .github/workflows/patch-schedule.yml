@@ -1,0 +1,94 @@
+name: Patch Schedule
+
+on:
+  schedule:
+    # Example: every Sunday at 11:00 UTC (adjust to your needs)
+    - cron: "0 11 * * SUN"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        required: true
+        options: [DEV, TEST, PROD]
+      policy:
+        description: "Patch policy"
+        type: choice
+        required: true
+        options: [baseline, critical-only]
+      target_group:
+        description: "Target group"
+        type: choice
+        required: true
+        options: [webservers, dbservers]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: patching-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Validate window + select policy/targets
+    runs-on: ubuntu-latest
+
+    outputs:
+      environment: ${{ steps.plan.outputs.environment }}
+      policy: ${{ steps.plan.outputs.policy }}
+      target_group: ${{ steps.plan.outputs.target_group }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Example maintenance window check (simple + opinionated):
+      # - Scheduled runs are allowed only on Sunday
+      # - Manual runs are allowed anytime
+      - name: Validate maintenance window and plan inputs
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EVENT="${{ github.event_name }}"
+
+          if [[ "$EVENT" == "schedule" ]]; then
+            # Maintenance window rule example: scheduled patches only on Sunday.
+            DOW="$(date -u +%u)" # 1=Mon ... 7=Sun
+            if [[ "$DOW" != "7" ]]; then
+              echo "Not within maintenance window (scheduled runs only allowed on Sunday UTC)."
+              exit 1
+            fi
+
+            # Default selection for scheduled runs (adjust to your org’s policy)
+            ENVIRONMENT="PROD"
+            POLICY="baseline"
+            TARGET_GROUP="webservers"
+          else
+            # Manual run: use provided inputs
+            ENVIRONMENT="${{ inputs.environment }}"
+            POLICY="${{ inputs.policy }}"
+            TARGET_GROUP="${{ inputs.target_group }}"
+          fi
+
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          echo "policy=$POLICY" >> "$GITHUB_OUTPUT"
+          echo "target_group=$TARGET_GROUP" >> "$GITHUB_OUTPUT"
+
+          echo "Planned run:"
+          echo "  environment:  $ENVIRONMENT"
+          echo "  policy:       $POLICY"
+          echo "  target_group: $TARGET_GROUP"
+
+  dispatch:
+    name: Dispatch patch execution
+    needs: plan
+    uses: ./.github/workflows/patch-execute.yml
+    with:
+      environment: ${{ needs.plan.outputs.environment }}
+      policy: ${{ needs.plan.outputs.policy }}
+      target_group: ${{ needs.plan.outputs.target_group }}
+    secrets: inherit

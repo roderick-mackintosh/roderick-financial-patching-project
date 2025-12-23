@@ -1,0 +1,7 @@
+target_group: appservers
+inventory_groups:
+  - appservers
+filters:
+  os_version:
+    include:
+      - ubuntu22.04

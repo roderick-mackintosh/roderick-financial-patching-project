@@ -1,0 +1,5 @@
+package_manager: apt
+reboot_allowed: true
+reboot_timeout: 900
+pre_patch_commands: []
+post_patch_commands: []

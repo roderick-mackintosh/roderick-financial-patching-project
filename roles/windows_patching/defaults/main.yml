@@ -1,0 +1,5 @@
+---
+reboot_timeout: 1500
+windows_update_categories:
+  - SecurityUpdates
+  - CriticalUpdates

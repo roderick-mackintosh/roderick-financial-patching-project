@@ -1,0 +1,6 @@
+---
+min_root_free_percent: 10
+backup_status_file: ""
+windows_repo_sources:
+  - https://www.microsoft.com
+  - https://chocolatey.org

@@ -1,0 +1,28 @@
+---
+- name: Ensure report output directory exists
+  ansible.builtin.file:
+    path: "{{ report_output_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Build patch report data
+  ansible.builtin.set_fact:
+    patch_report:
+      inventory_hostname: "{{ inventory_hostname }}"
+      os_family: "{{ ansible_os_family | default('unknown') }}"
+      os_version: "{{ ansible_distribution_version | default('unknown') }}"
+      kernel: "{{ ansible_kernel | default('') }}"
+      services_checked: "{{ service_checks | default([]) }}"
+      patch_exclude_packages: "{{ patch_exclude_packages | default([]) }}"
+      packages_before: "{{ packages_before | default([]) }}"
+      packages_after: "{{ packages_after | default([]) }}"
+      updates_applied: "{{ updates_applied | default([]) }}"
+      reboot_performed: "{{ reboot_performed | default(false) }}"
+      health_check_status: "{{ health_check_status | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 | default('') }}"
+
+- name: Write patch report file
+  ansible.builtin.copy:
+    dest: "{{ report_output_dir }}/{{ report_filename }}"
+    content: "{{ patch_report | to_nice_json }}"
+    mode: "0644"

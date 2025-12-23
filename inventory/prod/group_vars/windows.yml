@@ -1,0 +1,9 @@
+ansible_connection: winrm
+ansible_port: 5986
+ansible_winrm_transport: credssp
+ansible_winrm_server_cert_validation: ignore
+package_manager: choco
+reboot_allowed: false
+reboot_timeout: 1800
+pre_patch_commands: []
+post_patch_commands: []
